@@ -1,0 +1,55 @@
+export const arenaTheme = {
+  brand: {
+    name: 'lime-arena',
+    lime: 'oklch(0.9 0.22 125)',
+    limeForeground: 'oklch(0.2 0.02 250)',
+    primary: 'oklch(0.46 0.17 150)',
+    primaryForeground: 'oklch(0.99 0 0)',
+    success: 'oklch(0.72 0.17 150)',
+    surface: 'oklch(0.15 0.012 250)',
+  },
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
+    '2xl': 48,
+  },
+  radius: {
+    sm: 8,
+    md: 10,
+    lg: 12,
+    xl: 16,
+    full: 9999,
+  },
+  typography: {
+    fontFamily: "'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    display: "'Inter', ui-sans-serif, system-ui, sans-serif",
+    sizes: {
+      xs: 12,
+      sm: 14,
+      md: 16,
+      lg: 18,
+      xl: 24,
+      '2xl': 32,
+    },
+    weights: {
+      regular: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+      black: 800,
+    },
+  },
+  motion: {
+    fast: '150ms',
+    base: '200ms',
+    slow: '300ms',
+  },
+  gradients: {
+    hero: 'bg-gradient-to-br from-emerald-500 via-emerald-700 to-emerald-900',
+    night: 'bg-gradient-to-br from-slate-900 via-slate-950 to-black',
+    brand: 'bg-gradient-to-r from-brand to-emerald-500',
+  },
+} as const

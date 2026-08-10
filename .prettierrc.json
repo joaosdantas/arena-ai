@@ -1,0 +1,31 @@
+{
+  "semi": false,
+  "singleQuote": true,
+  "printWidth": 100,
+  "trailingComma": "all",
+  "tabWidth": 2,
+  "plugins": ["@trivago/prettier-plugin-sort-imports"],
+  "importOrder": [
+    "^react$",
+    "^react-dom",
+    "^@tanstack",
+    "^@hookform",
+    "^(lucide-react|sonner)$",
+    "^react-router-dom",
+    "^@/components",
+    "^@/contexts",
+    "^@/hooks",
+    "^@/layouts",
+    "^@/lib",
+    "^@/modules",
+    "^@/pages",
+    "^@/routes",
+    "^@/services",
+    "^@/types",
+    "^@/utils",
+    "^[./]"
+  ],
+  "importOrderSeparation": true,
+  "importOrderSortSpecifiers": true,
+  "importOrderParserPlugins": ["typescript", "jsx"]
+}

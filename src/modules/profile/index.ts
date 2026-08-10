@@ -1,0 +1,6 @@
+export { ProfilePage } from './pages/profile-page'
+export { updateProfileSchema } from './schemas/profile.schemas'
+export { getProfile, updateProfile, uploadAvatar } from './services/profile.service'
+export type { SaveProfileInput } from './services/profile.service'
+export type { UpdateProfileInput } from './schemas/profile.schemas'
+export type { UserProfile } from './types/profile'

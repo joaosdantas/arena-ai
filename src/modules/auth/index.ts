@@ -1,0 +1,7 @@
+export { LoginPage } from './pages/login-page'
+export { RecoverPasswordPage } from './pages/recover-password-page'
+export { RegisterPage } from './pages/register-page'
+export { authService } from './services/auth.service'
+export { loginSchema, recoverPasswordSchema, registerSchema } from './schemas/auth.schemas'
+export type { LoginInput, RecoverPasswordInput, RegisterInput } from './schemas/auth.schemas'
+export type { LoginCredentials } from './types/auth'
