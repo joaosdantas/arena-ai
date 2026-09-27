@@ -70,6 +70,10 @@ export interface SessionVideoView {
   matchId: string | null
   status: VideoProcessingStatus
   duration: number | null
+  recordingStartedAt: string | null
+  recordingEndedAt: string | null
+  timelineOffsetMs: number | null
+  cameraName: string | null
   thumbnailUrl: string | null
   previewUrl: string | null
   mimeType: string | null

@@ -126,9 +126,16 @@ export function PlayerMatchDetailPage() {
         ) : null}
 
         {!videosLoading && !videosError && videos && videos.length > 0 ? (
-          <div className="flex flex-col gap-3">
-            {videos.map((video) => (
-              <PlayerVideoCard key={video.id} video={video} />
+          <div className="flex flex-col gap-5">
+            {[...new Set(videos.map((video) => video.cameraName ?? 'Gravações sem câmera'))].map((camera) => (
+              <div key={camera} className="space-y-2">
+                <h3 className="text-sm font-semibold">{camera}</h3>
+                <div className="flex flex-col gap-3">
+                  {videos.filter((video) => (video.cameraName ?? 'Gravações sem câmera') === camera).map((video) => (
+                    <PlayerVideoCard key={video.id} video={video} />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         ) : null}

@@ -70,6 +70,47 @@ export const captureVideoService = {
     return { videoId: row.video_id, storagePath: row.storage_path }
   },
 
+  /** Registra o início no banco antes de iniciar o MediaRecorder. */
+  async startVideo(input: CreateCaptureVideoInput): Promise<CaptureVideoUpload> {
+    if (!isSupabaseConfigured()) return mockArenaStore.createCaptureVideo(input)
+    const { data, error } = await getSupabase().rpc('start_capture_video', {
+      p_device_id: input.deviceId,
+      p_installation_id: input.installationId,
+      p_session_id: input.sessionId,
+      p_mime_type: input.mimeType ?? null,
+      p_match_id: input.matchId ?? null,
+    })
+    if (error) throw error
+    const row = data?.[0]
+    if (!row) throw new Error('Não foi possível iniciar o registro da gravação.')
+    return { videoId: row.video_id, storagePath: row.storage_path }
+  },
+
+  /** Persiste duração e término antes do upload começar. */
+  async finishVideo(
+    videoId: string,
+    installationId: string,
+    duration: number,
+    fileSize: number,
+    mimeType: string,
+  ): Promise<void> {
+    if (!isSupabaseConfigured()) {
+      if (!mockArenaStore.finishCaptureVideo(videoId, installationId, duration, fileSize, mimeType)) {
+        throw new Error('Não foi possível finalizar o registro da gravação.')
+      }
+      return
+    }
+    const { data, error } = await getSupabase().rpc('finish_capture_video', {
+      p_video_id: videoId,
+      p_installation_id: installationId,
+      p_duration: duration,
+      p_file_size: fileSize,
+      p_mime_type: mimeType,
+    })
+    if (error) throw error
+    if (!data) throw new Error('Não foi possível finalizar o registro da gravação.')
+  },
+
   /** Envia o arquivo da gravação para o storage de captura. */
   async uploadCapturedVideo(
     file: File,

@@ -26,6 +26,9 @@ export interface MockVideoRecord {
   mime_type: string | null
   file_size: number | null
   duration: number | null
+  recording_started_at: string | null
+  recording_ended_at: string | null
+  timeline_offset_ms: number
   codec: string | null
   fps: number | null
   width: number | null
@@ -137,7 +140,7 @@ function seedData(ownerId: string): MockArenaData {
     },
     {
       id: 'mock-device-3',
-      court_id: courts[1].id,
+      court_id: courts[0].id,
       name: 'Camera Lateral Esquerda',
       qr_code: 'CAM-LAT-ESQUERDA-001',
       pairing_token: generateCaptureToken(),
@@ -151,6 +154,12 @@ function seedData(ownerId: string): MockArenaData {
       session_id: null,
       created_at: now,
       updated_at: now,
+    },
+    {
+      id: 'mock-device-4', court_id: courts[0].id, name: 'Camera Fundo 2', qr_code: 'CAM-FUNDO-002',
+      pairing_token: generateCaptureToken(), paired: false, capture_installation_id: null,
+      position: 'fundo esquerdo', height: 4, angle: -20, status: 'offline', last_seen: null,
+      session_id: null, created_at: now, updated_at: now,
     },
   ]
 
@@ -189,13 +198,36 @@ function seedData(ownerId: string): MockArenaData {
       processing_status: 'ready',
       mime_type: 'video/webm',
       file_size: 24_000_000,
-      duration: 38,
+      duration: 60,
+      recording_started_at: now,
+      recording_ended_at: new Date(new Date(now).getTime() + 60_000).toISOString(),
+      timeline_offset_ms: 0,
       codec: null,
       fps: null,
       width: null,
       height: null,
       created_at: now,
       updated_at: now,
+    },
+    {
+      id: 'mock-video-2', session_id: sessions[0].id, capture_device_id: devices[1].id,
+      match_id: 'mock-arena-match-1',
+      original_url: `capture/mock-installation/${sessions[0].id}/${devices[1].id}/mock-video-2.webm`,
+      preview_url: null, thumbnail_url: null, processing_status: 'ready', mime_type: 'video/webm',
+      file_size: 23_000_000, duration: 59,
+      recording_started_at: new Date(Date.parse(now) + 350).toISOString(),
+      recording_ended_at: new Date(Date.parse(now) + 59_350).toISOString(), timeline_offset_ms: 350,
+      codec: null, fps: null, width: null, height: null, created_at: now, updated_at: now,
+    },
+    {
+      id: 'mock-video-3', session_id: sessions[0].id, capture_device_id: devices[3].id,
+      match_id: 'mock-arena-match-1',
+      original_url: `capture/mock-installation/${sessions[0].id}/${devices[3].id}/mock-video-3.webm`,
+      preview_url: null, thumbnail_url: null, processing_status: 'processing', mime_type: 'video/webm',
+      file_size: 22_000_000, duration: 58,
+      recording_started_at: new Date(Date.parse(now) + 1200).toISOString(),
+      recording_ended_at: new Date(Date.parse(now) + 59_200).toISOString(), timeline_offset_ms: 1200,
+      codec: null, fps: null, width: null, height: null, created_at: now, updated_at: now,
     },
   ]
 
@@ -751,6 +783,9 @@ export const mockArenaStore = {
       mime_type: input.mimeType ?? 'video/webm',
       file_size: input.fileSize ?? null,
       duration: input.duration ?? null,
+      recording_started_at: now,
+      recording_ended_at: null,
+      timeline_offset_ms: Math.max(0, Math.floor((Date.parse(now) - Date.parse(session.started_at ?? now)) / 1)),
       codec: null,
       fps: null,
       width: null,
@@ -818,6 +853,28 @@ export const mockArenaStore = {
       recalculateAndPersist(video.session_id)
       scheduleMockWorker(videoId)
     }
+    return true
+  },
+
+  finishCaptureVideo(
+    videoId: string,
+    installationId: string,
+    duration: number,
+    fileSize: number,
+    mimeType: string,
+  ): boolean {
+    const store = readAll()
+    const entry = Object.values(store).find((item) => item?.videos.some((video) => video.id === videoId))
+    const video = entry?.videos.find((item) => item.id === videoId)
+    if (!entry || !video) return false
+    const device = entry.devices.find((item) => item.id === video.capture_device_id)
+    if (!device?.paired || device.capture_installation_id !== installationId || !video.recording_started_at) return false
+    updateVideoAndPersist(entry.arena.owner_id ?? '', videoId, {
+      duration: Math.max(0, duration),
+      file_size: fileSize,
+      mime_type: mimeType,
+      recording_ended_at: new Date(Date.parse(video.recording_started_at) + Math.max(0, duration) * 1000).toISOString(),
+    })
     return true
   },
 

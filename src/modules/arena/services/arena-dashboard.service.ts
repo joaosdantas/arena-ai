@@ -102,6 +102,10 @@ function toSessionVideoView(video: VideoRow): SessionVideoView {
     matchId: video.match_id,
     status: video.processing_status,
     duration: video.duration,
+    recordingStartedAt: video.recording_started_at,
+    recordingEndedAt: video.recording_ended_at,
+    timelineOffsetMs: video.timeline_offset_ms,
+    cameraName: null,
     thumbnailUrl: video.thumbnail_url,
     previewUrl: video.preview_url,
     mimeType: video.mime_type,
@@ -248,7 +252,10 @@ export const arenaDashboardService = {
         }))
       videos = mockArenaStore
         .getVideosBySession(sessionId)
-        .map((video) => toSessionVideoView(video as unknown as VideoRow))
+        .map((video) => {
+          const mapped = toSessionVideoView(video as unknown as VideoRow)
+          return { ...mapped, cameraName: devices.find((device) => device.id === video.capture_device_id)?.name ?? null }
+        })
     } else {
       const raw = await sessionService.get(sessionId)
       if (!raw) return null
@@ -269,7 +276,10 @@ export const arenaDashboardService = {
         status: match.status,
       }))
       videos = (await captureVideoService.getVideosBySession(sessionId)).map((video) =>
-        toSessionVideoView(video),
+        ({
+          ...toSessionVideoView(video),
+          cameraName: rawDevices.find((device) => device.id === video.capture_device_id)?.name ?? null,
+        }),
       )
     }
 

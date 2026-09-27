@@ -41,6 +41,12 @@ export interface CreateCaptureVideoInput {
   matchId?: string | null
 }
 
+export interface FinishCaptureVideoInput {
+  videoId: string
+  installationId: string
+  duration: number
+}
+
 export interface CaptureVideoUpload {
   videoId: string
   storagePath: string

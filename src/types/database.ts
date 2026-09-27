@@ -400,8 +400,11 @@ export type Database = {
           original_url: string
           preview_url: string | null
           processing_status: Database['public']['Enums']['video_processing_status']
+          recording_ended_at: string | null
+          recording_started_at: string | null
           session_id: string | null
           thumbnail_url: string | null
+          timeline_offset_ms: number
           width: number | null
         }
         Insert: {
@@ -418,8 +421,11 @@ export type Database = {
           original_url: string
           preview_url?: string | null
           processing_status?: Database['public']['Enums']['video_processing_status']
+          recording_ended_at?: string | null
+          recording_started_at?: string | null
           session_id?: string | null
           thumbnail_url?: string | null
+          timeline_offset_ms?: number
           width?: number | null
         }
         Update: {
@@ -436,8 +442,11 @@ export type Database = {
           original_url?: string
           preview_url?: string | null
           processing_status?: Database['public']['Enums']['video_processing_status']
+          recording_ended_at?: string | null
+          recording_started_at?: string | null
           session_id?: string | null
           thumbnail_url?: string | null
+          timeline_offset_ms?: number
           width?: number | null
         }
         Relationships: [
@@ -467,6 +476,20 @@ export type Database = {
     }
     Views: Record<string, never>
     Functions: {
+      start_capture_video: {
+        Args: {
+          p_device_id: string
+          p_installation_id: string
+          p_session_id: string
+          p_mime_type?: string | null
+          p_match_id?: string | null
+        }
+        Returns: { video_id: string; storage_path: string; recording_started_at: string; timeline_offset_ms: number }[]
+      }
+      finish_capture_video: {
+        Args: { p_video_id: string; p_installation_id: string; p_duration: number; p_file_size?: number | null; p_mime_type?: string | null }
+        Returns: boolean
+      }
       get_active_capture_session: {
         Args: {
           p_device_id: string

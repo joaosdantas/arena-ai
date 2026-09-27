@@ -10,6 +10,7 @@ import { VideoStatusBadge } from '@/modules/videos/components/video-status-badge
 import { appPaths } from '@/routes/paths'
 
 import { formatDuration } from '@/utils/format'
+import { formatTimelineTime } from '@/modules/arena/services/video-timeline.service'
 
 interface PlayerVideoCardProps {
   video: PlayerVideo
@@ -49,6 +50,10 @@ export function PlayerVideoCard({ video }: PlayerVideoCardProps) {
           <p className="truncate text-sm font-medium">{video.cameraName ?? 'Gravação'}</p>
           <p className="text-muted-foreground text-xs">
             {video.duration ? formatDuration(video.duration) : '—'}
+          </p>
+          <p className="text-muted-foreground text-xs">
+            Início {formatTimelineTime(video.timelineOffsetMs ?? 0)}
+            {video.duration !== null ? ` · Duração ${formatTimelineTime(video.duration * 1000)}` : ''}
           </p>
           <VideoStatusBadge status={video.status} />
         </div>

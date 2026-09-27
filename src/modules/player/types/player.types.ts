@@ -30,6 +30,10 @@ export interface PlayerVideo {
   thumbnailUrl: string | null
   previewUrl: string | null
   duration: number | null
+  recordingStartedAt: string | null
+  recordingEndedAt: string | null
+  timelineOffsetMs: number | null
+  sessionStartedAt: string | null
   cameraName: string | null
   createdAt: string
   matchTitle: string | null

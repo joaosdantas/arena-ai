@@ -8,6 +8,7 @@ import {
   SessionStatusBadge,
 } from '@/modules/arena/components/arena-status-badge'
 import { SessionVideosCard } from '@/modules/arena/components/session-videos-card'
+import { SessionTimelineCard } from '@/modules/arena/components/session-timeline-card'
 import { useSessionLifecycle } from '@/modules/arena/hooks/use-session-lifecycle'
 import type { SessionDetail } from '@/modules/arena/types/arena-dashboard.types'
 
@@ -143,6 +144,7 @@ export function SessionOverview({ session }: { session: SessionDetail }) {
 
         <SessionVideosCard videos={session.videos} />
       </div>
+      <SessionTimelineCard session={session} />
     </div>
   )
 }

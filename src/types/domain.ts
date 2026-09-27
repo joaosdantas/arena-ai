@@ -45,6 +45,9 @@ export type CaptureDevice = Tables<'capture_devices'>
 export type CaptureDeviceInsert = Database['public']['Tables']['capture_devices']['Insert']
 export type CaptureDeviceUpdate = Database['public']['Tables']['capture_devices']['Update']
 
+/** A device's association to its currently assigned session (capture_devices.session_id). */
+export type SessionCaptureDevice = Pick<CaptureDevice, 'id' | 'session_id'>
+
 export const CAPTURE_DEVICE_STATUSES = ['offline', 'ready', 'recording', 'uploading', 'error'] as const
 export type CaptureDeviceStatus = (typeof CAPTURE_DEVICE_STATUSES)[number]
 

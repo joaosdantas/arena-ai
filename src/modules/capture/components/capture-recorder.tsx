@@ -17,6 +17,7 @@ import {
   formatElapsed,
   generateVideoThumbnail,
   getFileExtensionFromMime,
+  getSupportedMimeType,
   isMediaRecorderSupported,
 } from '@/modules/capture/utils/media-recorder'
 
@@ -47,6 +48,7 @@ export function CaptureRecorder({
   const [phase, setPhase] = useState<RecorderPhase>('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const pendingVideoRef = useRef<{ videoId: string; storagePath: string } | null>(null)
 
   const { recording, elapsed, start, stop } = useCaptureRecording({
     onComplete: (result) => void handleRecordingComplete(result),
@@ -90,13 +92,26 @@ export function CaptureRecorder({
     setError(null)
   }
 
-  function startRecording() {
+  async function startRecording() {
     if (!streamRef.current || !canRecord) return
     setError(null)
     log.info('iniciando gravação', { deviceId, sessionId: activeSession?.sessionId })
-    void captureDeviceService.setStatus(deviceId, installationId, 'recording')
-    start(streamRef.current)
-    setPhase('recording')
+    try {
+      const created = await captureVideoService.startVideo({
+        deviceId,
+        installationId,
+        sessionId: activeSession!.sessionId,
+        mimeType: getSupportedMimeType(),
+      })
+      pendingVideoRef.current = created
+      void captureDeviceService.setStatus(deviceId, installationId, 'recording').catch((statusError) => {
+        log.warn('não foi possível atualizar o status do dispositivo', statusError)
+      })
+      start(streamRef.current)
+      setPhase('recording')
+    } catch (startError) {
+      setError(toErrorMessage(startError, 'Não foi possível iniciar a gravação.'))
+    }
   }
 
   function stopRecording() {
@@ -113,15 +128,16 @@ export function CaptureRecorder({
     try {
       await captureDeviceService.setStatus(deviceId, installationId, 'uploading')
 
-      const created = await captureVideoService.createVideo({
-        deviceId,
-        installationId,
-        sessionId: activeSession.sessionId,
-        mimeType: result.mimeType,
-        fileSize: result.blob.size,
-        duration: result.durationSec,
-      })
+      const created = pendingVideoRef.current
+      if (!created) throw new Error('Registro inicial da gravação não encontrado.')
       videoId = created.videoId
+      await captureVideoService.finishVideo(
+        videoId,
+        installationId,
+        result.durationSec,
+        result.blob.size,
+        result.mimeType,
+      )
 
       const extension = getFileExtensionFromMime(result.mimeType)
       const file = new File([result.blob], `${created.videoId}.${extension}`, {

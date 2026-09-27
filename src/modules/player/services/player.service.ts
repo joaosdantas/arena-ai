@@ -35,6 +35,9 @@ interface PlayerVideoRow {
   thumbnail_url: string | null
   preview_url: string | null
   duration: number | null
+  recording_started_at: string | null
+  recording_ended_at: string | null
+  timeline_offset_ms: number | null
   created_at: string
   match: {
     id: string
@@ -43,7 +46,7 @@ interface PlayerVideoRow {
     scheduled_at: string | null
     arena: { id: string; name: string; city: string | null } | null
   } | null
-  session: { court: { name: string } | null } | null
+  session: { started_at?: string | null; court: { name: string } | null } | null
   capture_device: { name: string } | null
 }
 
@@ -88,6 +91,10 @@ function mapPlayerVideo(row: PlayerVideoRow): PlayerVideo {
     thumbnailUrl: resolveThumbnailUrl(row.thumbnail_url),
     previewUrl: resolveThumbnailUrl(row.preview_url),
     duration: row.duration,
+    recordingStartedAt: row.recording_started_at ?? null,
+    recordingEndedAt: row.recording_ended_at ?? null,
+    timelineOffsetMs: row.timeline_offset_ms ?? null,
+    sessionStartedAt: row.session?.started_at ?? null,
     cameraName: row.capture_device?.name ?? null,
     createdAt: row.created_at,
     matchTitle: row.match?.title ?? null,
@@ -107,7 +114,7 @@ export const playerService = {
     const client = getSupabase()
     const { data: rows, error } = await client
       .from('matches')
-      .select('*, arena:arenas(*), session:sessions(court:courts(name))')
+      .select('*, arena:arenas(*), session:sessions(started_at,court:courts(name))')
       .order('created_at', { ascending: false })
       .returns<PlayerMatchRow[]>()
 
@@ -184,7 +191,7 @@ export const playerService = {
     const { data: rows, error } = await client
       .from('videos')
       .select(
-        '*, match:matches(*, arena:arenas(*)), session:sessions(court:courts(name)), capture_device:capture_devices(name)',
+        '*, match:matches(*, arena:arenas(*)), session:sessions(started_at,court:courts(name)), capture_device:capture_devices(name)',
       )
       .eq('match_id', matchId)
       .order('created_at', { ascending: false })
@@ -212,7 +219,7 @@ export const playerService = {
     const { data: row, error } = await client
       .from('videos')
       .select(
-        '*, match:matches(*, arena:arenas(*)), session:sessions(court:courts(name)), capture_device:capture_devices(name)',
+        '*, match:matches(*, arena:arenas(*)), session:sessions(started_at,court:courts(name)), capture_device:capture_devices(name)',
       )
       .eq('id', id)
       .maybeSingle()
