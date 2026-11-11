@@ -5,6 +5,7 @@ export const CAPTURE_HEARTBEAT_INTERVAL_MS = 15_000
 
 // Tempo sem heartbeat após o qual o dispositivo é considerado offline.
 export const CAPTURE_DEVICE_OFFLINE_AFTER_MS = 30_000
+export const MAX_CAPTURE_ROOM_DEVICES = 10
 
 /**
  * Gera um token aleatório seguro (base64url) usado para o pareamento e para o
@@ -30,4 +31,9 @@ export function deriveCapturePresence(lastSeen: string | null | undefined): Capt
 /** URL pública de pareamento codificada no QR Code. */
 export function buildCapturePairingUrl(pairingToken: string): string {
   return `${window.location.origin}/capture/${pairingToken}`
+}
+
+/** URL pública para entrar em uma sala de captura. */
+export function buildCaptureRoomUrl(roomToken: string): string {
+  return `${window.location.origin}/capture/room/${roomToken}`
 }

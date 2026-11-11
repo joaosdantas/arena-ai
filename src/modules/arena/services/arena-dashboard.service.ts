@@ -12,6 +12,7 @@ import type {
 
 import { arenaService } from '@/services/arena.service'
 import { captureDeviceService } from '@/services/capture-device.service'
+import { captureRoomService } from '@/services/capture-room.service'
 import { captureVideoService } from '@/services/capture-video.service'
 import { courtService } from '@/services/court.service'
 import { sessionService } from '@/services/session.service'
@@ -250,12 +251,13 @@ export const arenaDashboardService = {
           sport: match.sport,
           status: match.status,
         }))
-      videos = mockArenaStore
-        .getVideosBySession(sessionId)
-        .map((video) => {
-          const mapped = toSessionVideoView(video as unknown as VideoRow)
-          return { ...mapped, cameraName: devices.find((device) => device.id === video.capture_device_id)?.name ?? null }
-        })
+      videos = mockArenaStore.getVideosBySession(sessionId).map((video) => {
+        const mapped = toSessionVideoView(video as unknown as VideoRow)
+        return {
+          ...mapped,
+          cameraName: devices.find((device) => device.id === video.capture_device_id)?.name ?? null,
+        }
+      })
     } else {
       const raw = await sessionService.get(sessionId)
       if (!raw) return null
@@ -275,15 +277,15 @@ export const arenaDashboardService = {
         sport: match.sport ?? '',
         status: match.status,
       }))
-      videos = (await captureVideoService.getVideosBySession(sessionId)).map((video) =>
-        ({
-          ...toSessionVideoView(video),
-          cameraName: rawDevices.find((device) => device.id === video.capture_device_id)?.name ?? null,
-        }),
-      )
+      videos = (await captureVideoService.getVideosBySession(sessionId)).map((video) => ({
+        ...toSessionVideoView(video),
+        cameraName:
+          rawDevices.find((device) => device.id === video.capture_device_id)?.name ?? null,
+      }))
     }
-
-    return session ? { ...session, devices, matches, videos } : null
+    if (!session) return null
+    const captureRoomToken = await captureRoomService.getToken(sessionId)
+    return { ...session, captureRoomToken, devices, matches, videos }
   },
 
   async getSummary(arenaId: string): Promise<ArenaDashboardSummary> {

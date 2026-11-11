@@ -63,7 +63,7 @@ create or replace function public.get_capture_device_by_token(
 returns table (
   id uuid,
   name text,
-  position text,
+  "position" text,
   court_name text,
   arena_name text,
   paired boolean,
@@ -98,7 +98,7 @@ create or replace function public.get_capture_device_by_id(
 returns table (
   id uuid,
   name text,
-  position text,
+  "position" text,
   court_name text,
   arena_name text,
   paired boolean,

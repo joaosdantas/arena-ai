@@ -7,11 +7,12 @@ import { ArenaAccessGuard, ArenaLayout } from '@/modules/arena'
 import { PublicRoute } from '@/modules/auth/components/public-route'
 import { CaptureDevicePage } from '@/modules/capture/pages/capture-device-page'
 import { CapturePairingPage } from '@/modules/capture/pages/capture-pairing-page'
+import { CaptureRoomPage } from '@/modules/capture/pages/capture-room-page'
 import {
+  PlayerHomePage,
   PlayerLayout,
   PlayerMatchDetailPage,
   PlayerVideoPage,
-  PlayerHomePage,
   PublicWatchPage,
 } from '@/modules/player'
 
@@ -165,6 +166,10 @@ export const router = createBrowserRouter([
   {
     path: appPaths.publicMatch(':id'),
     element: <PublicMatchPage />,
+  },
+  {
+    path: '/capture/room/:roomToken',
+    element: <CaptureRoomPage />,
   },
   {
     path: '/capture/device/:id',

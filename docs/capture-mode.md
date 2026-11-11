@@ -1,17 +1,22 @@
 # Capture Mode — Arena AI
 
-Pareamento **real** de um celular com um Capture Device via QR Code, com
-identidade persistente do aparelho e heartbeat para status online/offline no
-dashboard da arena.
+O Capture Mode permite parear celulares com dispositivos cadastrados ou entrar
+em uma sala de sessão por QR Code. Cada aparelho pode gravar com a câmera do
+navegador e enviar o vídeo, ou selecionar uma gravação já existente no celular.
 
-Esta etapa **não** implementa gravação, upload, processamento, IA, highlights
-ou multicâmera. O objetivo é apenas:
+O fluxo inclui:
 
-1. QR Code real (scannable) apontando para `/capture/:pairingToken`.
-2. Pareamento real do celular com o dispositivo.
-3. Identidade persistente do celular (`capture_installation_id`).
-4. Heartbeat (15s) → status online/offline derivado de `last_seen` (< 30s).
-5. Despareamento pela administração do dispositivo.
+1. QR de dispositivo em `/capture/:pairingToken` e QR compartilhado da sessão
+   em `/capture/room/:roomToken`.
+2. Identidade persistente do celular (`capture_installation_id`) e heartbeat
+   (15s) para status online/offline.
+3. Vários dispositivos vinculados à mesma sessão/sala.
+4. Gravação pelo `MediaRecorder` e upload de arquivos `.mp4`, `.mov` ou
+   `.webm` (até 2 GB).
+5. Limite de 10 dispositivos pareados por sessão.
+
+IA, highlights automáticos e sincronização frame-perfect continuam fora do
+escopo.
 
 ---
 
@@ -50,10 +55,11 @@ RPCs `SECURITY DEFINER` que devolvem dados mínimos e validam o token.
 
 ### Rotas públicas
 
-| Rota                          | Descrição                                     |
-| ----------------------------- | --------------------------------------------- |
-| `/capture/:pairingToken`      | Confirmação de pareamento (QR escaneado)      |
-| `/capture/device/:id`         | Modo captura (câmera + status + heartbeat)    |
+| Rota                       | Descrição                                   |
+| -------------------------- | ------------------------------------------- |
+| `/capture/:pairingToken`   | Confirmação de pareamento (QR escaneado)    |
+| `/capture/room/:roomToken` | Entrada em uma sala de sessão compartilhada |
+| `/capture/device/:id`      | Modo captura (câmera + status + heartbeat)  |
 
 ## 3. Identidade do celular (capture_installation_id)
 
@@ -69,10 +75,10 @@ aparelho físico/browser — não é fingerprint, não coleta dados do dispositi
 
 Dois eixos **independentes** (pareamento ≠ status online):
 
-| Eixo | Valores | Fonte |
-| --- | --- | --- |
-| Pareamento | `unpaired` / `pairing` (transitório) / `paired` | coluna `paired` |
-| Presença | `online` (< 30s desde `last_seen`) / `offline` | derivada de `last_seen` |
+| Eixo       | Valores                                         | Fonte                   |
+| ---------- | ----------------------------------------------- | ----------------------- |
+| Pareamento | `unpaired` / `pairing` (transitório) / `paired` | coluna `paired`         |
+| Presença   | `online` (< 30s desde `last_seen`) / `offline`  | derivada de `last_seen` |
 
 Um dispositivo pode estar: `paired + offline` (pareado, celular fechado),
 `paired + online`, `unpaired + offline`.
@@ -96,15 +102,15 @@ status reflete o backend, não estado local do React.
 
 `src/services/capture-device.service.ts` (comum, alterna mock/Supabase):
 
-| Método | Supabase | Mock |
-| --- | --- | --- |
-| `getByPairingToken(token, installationId)` | RPC `get_capture_device_by_token` | `mockArenaStore.findDeviceByPairingToken` |
-| `getByDeviceId(id, installationId)` | RPC `get_capture_device_by_id` | `mockArenaStore.getDeviceById` |
-| `pairDevice(token, installationId)` | RPC `pair_capture_device` | `mockArenaStore.pairDevice` |
-| `sendHeartbeat(id, installationId)` | RPC `send_capture_device_heartbeat` | `mockArenaStore.sendHeartbeat` |
-| `setStatus(id, installationId, status)` | RPC `set_capture_device_status` | `mockArenaStore.setDeviceStatus` |
-| `unpairDevice(id)` | update autenticado | `mockArenaStore.unpairDevice` |
-| `getDeviceStatus(id)` | leitura | mock store |
+| Método                                     | Supabase                            | Mock                                      |
+| ------------------------------------------ | ----------------------------------- | ----------------------------------------- |
+| `getByPairingToken(token, installationId)` | RPC `get_capture_device_by_token`   | `mockArenaStore.findDeviceByPairingToken` |
+| `getByDeviceId(id, installationId)`        | RPC `get_capture_device_by_id`      | `mockArenaStore.getDeviceById`            |
+| `pairDevice(token, installationId)`        | RPC `pair_capture_device`           | `mockArenaStore.pairDevice`               |
+| `sendHeartbeat(id, installationId)`        | RPC `send_capture_device_heartbeat` | `mockArenaStore.sendHeartbeat`            |
+| `setStatus(id, installationId, status)`    | RPC `set_capture_device_status`     | `mockArenaStore.setDeviceStatus`          |
+| `unpairDevice(id)`                         | update autenticado                  | `mockArenaStore.unpairDevice`             |
+| `getDeviceStatus(id)`                      | leitura                             | mock store                                |
 
 Hooks (TanStack Query para queries, mutation para pareamento):
 
@@ -125,7 +131,17 @@ heartbeat e status online/offline com o mesmo contrato do Supabase.
 > Supabase. No mock, o fluxo é simulado no mesmo browser (abrir o link de
 > pareamento → conectar → heartbeat → dashboard mostra online).
 
-## 8. Gravação e upload (resumo)
+## 8. Sala de captura, gravação e upload
+
+Ao iniciar uma sessão, o detalhe da sessão exibe um QR/link compartilhável.
+Cada aparelho que abre o link recebe um dispositivo próprio vinculado à quadra
+e à sessão. O link funciona como autorização temporária: novos aparelhos só
+entram enquanto a sala está aberta; **Encerrar** revoga novas entradas.
+Cada sala aceita até 10 dispositivos pareados.
+
+Na página do dispositivo, o usuário pode gravar pelo navegador ou escolher um
+arquivo existente. Ambos criam um registro de vídeo na mesma sessão e enviam
+para o worker. O limite atual de arquivo é 2 GB.
 
 Desde a migration `20260807000019_session_lifecycle.sql`, o modo captura grava
 via `MediaRecorder` e envia a gravação quando a **sessão está ativa**. O fluxo
@@ -134,11 +150,14 @@ completo (sessões, RPCs, storage e worker) está documentado em
 
 ## 9. Segurança
 
-- As RPCs públicas devolvem **somente**: `id`, `name`, `position`,
-  `court_name`, `arena_name`, `paired` e `is_mine`. Nunca `owner_id`, e-mails
-  ou o `capture_installation_id` de outro aparelho.
+- As RPCs públicas devolvem apenas dados operacionais mínimos da câmera ou da
+  sala (identificadores, nomes e status). Nunca expõem `owner_id`, e-mails ou o
+  `capture_installation_id` de outro aparelho.
 - Pareamento e heartbeat validam o token/installation id; não dá para assumir
   um dispositivo já pareado a outro installation.
+- O QR/link da sala funciona como convite: qualquer pessoa que tenha o token
+  pode entrar enquanto a sessão estiver aberta. Encerrar a sala invalida novas
+  entradas; o token não é consultável diretamente na tabela.
 - `pair_capture_device` é idempotente para o mesmo installation id.
 - A RLS por proprietário da arena (`arenas.owner_id`) fica para etapa futura;
   a policy atual de `capture_devices` continua leitura pública, como nas demais
@@ -155,19 +174,22 @@ Com **Supabase configurado** (`VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`):
 4. O celular redireciona para `/capture/device/:id` → **● Conectada**.
 5. **Computador:** `/arena/devices` (ou dashboard) mostra **Online** em até ~15s.
 6. **Fechar o modo captura no celular:** após ~30s o dashboard mostra **Offline**.
-7. Reabrir `/capture/device/:id` no celular → reconhecido (installation id) → online de novo.
-8. Em `/arena/devices`, **[Desconectar dispositivo]** → `paired=false`, status
+7. Em `/arena/sessions/:id`, iniciar a sessão e escanear o QR da sala em cada
+   celular; cada um entra na mesma sessão e pode gravar ou enviar um vídeo.
+8. Reabrir `/capture/device/:id` no celular → reconhecido (installation id) → online de novo.
+9. Em `/arena/devices`, **[Desconectar dispositivo]** → `paired=false`, status
    offline; o QR continua válido para novo pareamento.
 
 ### Sem Supabase (mock)
 
 1. Rode `npm run dev` e entre (ou deixe o mock criar a Arena XP).
-2. Em `/arena/devices`, copie o **link** do QR e abra no mesmo browser em outra
-   aba (`/capture/:pairingToken`).
-3. Confirme → `/capture/device/:id` → heartbeat → dashboard mostra **Online**.
-4. Feche a aba do modo captura → após ~30s mostra **Offline**.
+2. Em `/arena/sessions/:id`, inicie uma sessão e abra o QR/link da sala no
+   mesmo browser.
+3. Entre na sala, grave ou envie um vídeo, e confira a gravação no dashboard.
+4. O mock guarda os dados no `localStorage`; para testar simultaneamente em
+   vários aparelhos, configure o Supabase.
 
-## 10. Migration
+## 10. Migrations
 
 `supabase/migrations/20260807000018_capture_pairing.sql`
 
@@ -177,6 +199,10 @@ Com **Supabase configurado** (`VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`):
 - RPCs `SECURITY DEFINER`: `get_capture_device_by_token`,
   `get_capture_device_by_id`, `pair_capture_device`,
   `send_capture_device_heartbeat` + grants para `anon`/`authenticated`.
+
+`supabase/migrations/20260807000023_multi_device_capture_rooms.sql` cria o
+token da sala, RPCs de entrada/consulta e as regras para manter sessões abertas
+enquanto novos dispositivos podem enviar vídeos.
 
 ## 11. Fora do escopo
 

@@ -1,8 +1,7 @@
 import type { Arena, CaptureDevice, Court, Session } from '@/types/domain'
-
 import type { VideoProcessingStatus } from '@/types/videos'
 
-import { generateCaptureToken } from '@/utils/capture'
+import { MAX_CAPTURE_ROOM_DEVICES, generateCaptureToken } from '@/utils/capture'
 
 const MOCK_ARENA_KEY = 'arena-ai:mock-arena-dashboard'
 
@@ -42,6 +41,7 @@ export interface MockArenaData {
   courts: Court[]
   devices: CaptureDevice[]
   sessions: Session[]
+  captureRooms?: Record<string, { token: string; isOpen: boolean }>
   matches: MockArenaMatch[]
   videos: MockVideoRecord[]
   videosProcessedCount: number
@@ -156,10 +156,21 @@ function seedData(ownerId: string): MockArenaData {
       updated_at: now,
     },
     {
-      id: 'mock-device-4', court_id: courts[0].id, name: 'Camera Fundo 2', qr_code: 'CAM-FUNDO-002',
-      pairing_token: generateCaptureToken(), paired: false, capture_installation_id: null,
-      position: 'fundo esquerdo', height: 4, angle: -20, status: 'offline', last_seen: null,
-      session_id: null, created_at: now, updated_at: now,
+      id: 'mock-device-4',
+      court_id: courts[0].id,
+      name: 'Camera Fundo 2',
+      qr_code: 'CAM-FUNDO-002',
+      pairing_token: generateCaptureToken(),
+      paired: false,
+      capture_installation_id: null,
+      position: 'fundo esquerdo',
+      height: 4,
+      angle: -20,
+      status: 'offline',
+      last_seen: null,
+      session_id: null,
+      created_at: now,
+      updated_at: now,
     },
   ]
 
@@ -210,24 +221,48 @@ function seedData(ownerId: string): MockArenaData {
       updated_at: now,
     },
     {
-      id: 'mock-video-2', session_id: sessions[0].id, capture_device_id: devices[1].id,
+      id: 'mock-video-2',
+      session_id: sessions[0].id,
+      capture_device_id: devices[1].id,
       match_id: 'mock-arena-match-1',
       original_url: `capture/mock-installation/${sessions[0].id}/${devices[1].id}/mock-video-2.webm`,
-      preview_url: null, thumbnail_url: null, processing_status: 'ready', mime_type: 'video/webm',
-      file_size: 23_000_000, duration: 59,
+      preview_url: null,
+      thumbnail_url: null,
+      processing_status: 'ready',
+      mime_type: 'video/webm',
+      file_size: 23_000_000,
+      duration: 59,
       recording_started_at: new Date(Date.parse(now) + 350).toISOString(),
-      recording_ended_at: new Date(Date.parse(now) + 59_350).toISOString(), timeline_offset_ms: 350,
-      codec: null, fps: null, width: null, height: null, created_at: now, updated_at: now,
+      recording_ended_at: new Date(Date.parse(now) + 59_350).toISOString(),
+      timeline_offset_ms: 350,
+      codec: null,
+      fps: null,
+      width: null,
+      height: null,
+      created_at: now,
+      updated_at: now,
     },
     {
-      id: 'mock-video-3', session_id: sessions[0].id, capture_device_id: devices[3].id,
+      id: 'mock-video-3',
+      session_id: sessions[0].id,
+      capture_device_id: devices[3].id,
       match_id: 'mock-arena-match-1',
       original_url: `capture/mock-installation/${sessions[0].id}/${devices[3].id}/mock-video-3.webm`,
-      preview_url: null, thumbnail_url: null, processing_status: 'processing', mime_type: 'video/webm',
-      file_size: 22_000_000, duration: 58,
+      preview_url: null,
+      thumbnail_url: null,
+      processing_status: 'processing',
+      mime_type: 'video/webm',
+      file_size: 22_000_000,
+      duration: 58,
       recording_started_at: new Date(Date.parse(now) + 1200).toISOString(),
-      recording_ended_at: new Date(Date.parse(now) + 59_200).toISOString(), timeline_offset_ms: 1200,
-      codec: null, fps: null, width: null, height: null, created_at: now, updated_at: now,
+      recording_ended_at: new Date(Date.parse(now) + 59_200).toISOString(),
+      timeline_offset_ms: 1200,
+      codec: null,
+      fps: null,
+      width: null,
+      height: null,
+      created_at: now,
+      updated_at: now,
     },
   ]
 
@@ -236,6 +271,9 @@ function seedData(ownerId: string): MockArenaData {
     courts,
     devices,
     sessions,
+    captureRooms: {
+      [sessions[0].id]: { token: generateCaptureToken(32), isOpen: true },
+    },
     matches: [
       {
         id: 'mock-arena-match-1',
@@ -337,16 +375,19 @@ function recalculateSessionMock(data: MockArenaData, session: Session): Session 
     return session
   }
   const sessionVideos = data.videos.filter((video) => video.session_id === session.id)
+  const roomOpen = data.captureRooms?.[session.id]?.isOpen ?? false
 
   let nextStatus: Session['status']
-  if (sessionVideos.some((video) => video.processing_status === 'failed')) {
-    nextStatus = 'failed'
-  } else if (
+  if (
     sessionVideos.some((video) =>
       ['pending', 'uploading', 'processing'].includes(video.processing_status),
     )
   ) {
     nextStatus = 'processing'
+  } else if (roomOpen) {
+    nextStatus = 'active'
+  } else if (sessionVideos.some((video) => video.processing_status === 'failed')) {
+    nextStatus = 'failed'
   } else {
     nextStatus = 'finished'
   }
@@ -354,8 +395,9 @@ function recalculateSessionMock(data: MockArenaData, session: Session): Session 
   return {
     ...session,
     status: nextStatus,
-    ended_at:
-      nextStatus === 'finished' || nextStatus === 'failed'
+    ended_at: roomOpen
+      ? null
+      : nextStatus === 'finished' || nextStatus === 'failed'
         ? (session.ended_at ?? nowIso())
         : session.ended_at,
     updated_at: nowIso(),
@@ -494,6 +536,7 @@ export const mockArenaStore = {
       courts: [court],
       devices: [device],
       sessions: [],
+      captureRooms: {},
       matches: [],
       videos: [],
       videosProcessedCount: 0,
@@ -638,7 +681,11 @@ export const mockArenaStore = {
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
   },
 
-  createSession(input: { courtId: string; startedAt?: string | null; status?: Session['status'] }): Session {
+  createSession(input: {
+    courtId: string
+    startedAt?: string | null
+    status?: Session['status']
+  }): Session {
     const store = readAll()
     const entry = Object.values(store).find((item) =>
       item?.courts.some((court) => court.id === input.courtId),
@@ -708,6 +755,159 @@ export const mockArenaStore = {
     return updated
   },
 
+  openCaptureRoom(sessionId: string): string | null {
+    const ctx = findSessionContext(sessionId)
+    if (!ctx || !['active', 'processing'].includes(ctx.session.status)) return null
+
+    const store = readAll()
+    const entry = store[ctx.ownerId]
+    if (!entry) return null
+    entry.captureRooms ??= {}
+    const room = entry.captureRooms[sessionId] ?? {
+      token: generateCaptureToken(32),
+      isOpen: false,
+    }
+    room.isOpen = true
+    entry.captureRooms[sessionId] = room
+    writeAll(store)
+    return room.token
+  },
+
+  getCaptureRoomToken(sessionId: string): string | null {
+    const ctx = findSessionContext(sessionId)
+    if (!ctx) return null
+    if (ctx.session.status === 'active' && !ctx.data.captureRooms?.[sessionId]) {
+      return this.openCaptureRoom(sessionId)
+    }
+    const room = ctx.data.captureRooms?.[sessionId]
+    return room?.isOpen && ['active', 'processing'].includes(ctx.session.status) ? room.token : null
+  },
+
+  closeCaptureRoom(sessionId: string): boolean {
+    const ctx = findSessionContext(sessionId)
+    if (!ctx) return false
+
+    const store = readAll()
+    const entry = store[ctx.ownerId]
+    const room = entry?.captureRooms?.[sessionId]
+    if (room) room.isOpen = false
+    if (entry) {
+      entry.sessions = entry.sessions.map((session) =>
+        session.id === sessionId
+          ? {
+              ...session,
+              ended_at:
+                session.ended_at ??
+                new Date(
+                  Math.max(Date.now(), Date.parse(session.started_at ?? nowIso()) + 1),
+                ).toISOString(),
+              updated_at: nowIso(),
+            }
+          : session,
+      )
+    }
+    if (entry) writeAll(store)
+    return true
+  },
+
+  getCaptureRoomByToken(roomToken: string): {
+    sessionId: string
+    status: string
+    arenaName: string
+    courtName: string
+  } | null {
+    const store = readAll()
+    for (const data of Object.values(store)) {
+      if (!data) continue
+      const session = data.sessions.find(
+        (item) =>
+          data.captureRooms?.[item.id]?.token === roomToken &&
+          data.captureRooms[item.id].isOpen &&
+          ['active', 'processing'].includes(item.status),
+      )
+      if (!session) continue
+      const court = data.courts.find((item) => item.id === session.court_id)
+      return {
+        sessionId: session.id,
+        status: session.status,
+        arenaName: data.arena.name,
+        courtName: court?.name ?? '—',
+      }
+    }
+    return null
+  },
+
+  joinCaptureRoom(roomToken: string, installationId: string, deviceName: string): string | null {
+    if (!installationId.trim()) return null
+    const store = readAll()
+
+    for (const data of Object.values(store)) {
+      if (!data) continue
+      const session = data.sessions.find(
+        (item) =>
+          data.captureRooms?.[item.id]?.token === roomToken &&
+          data.captureRooms[item.id].isOpen &&
+          ['active', 'processing'].includes(item.status),
+      )
+      if (!session) continue
+
+      const now = nowIso()
+      const existing = data.devices.find(
+        (device) =>
+          device.session_id === session.id &&
+          device.paired &&
+          device.capture_installation_id === installationId,
+      )
+      if (existing) {
+        data.devices = data.devices.map((device) =>
+          device.id === existing.id
+            ? {
+                ...device,
+                name: deviceName.trim().slice(0, 64) || 'Celular',
+                status: 'ready',
+                last_seen: now,
+                updated_at: now,
+              }
+            : device,
+        )
+        writeAll(store)
+        return existing.id
+      }
+
+      const pairedDeviceCount = data.devices.filter(
+        (device) => device.session_id === session.id && device.paired,
+      ).length
+      if (pairedDeviceCount >= MAX_CAPTURE_ROOM_DEVICES) {
+        throw new Error(`A sala já atingiu o limite de ${MAX_CAPTURE_ROOM_DEVICES} dispositivos.`)
+      }
+
+      const deviceId = crypto.randomUUID()
+      const roomDeviceToken = generateCaptureToken()
+      const device: CaptureDevice = {
+        id: deviceId,
+        court_id: session.court_id,
+        name: deviceName.trim().slice(0, 64) || 'Celular',
+        qr_code: `ROOM-${roomDeviceToken.toUpperCase()}`,
+        pairing_token: roomDeviceToken,
+        paired: true,
+        capture_installation_id: installationId,
+        position: null,
+        height: null,
+        angle: null,
+        status: 'ready',
+        last_seen: now,
+        session_id: session.id,
+        created_at: now,
+        updated_at: now,
+      }
+      data.devices = [...data.devices, device]
+      writeAll(store)
+      return deviceId
+    }
+
+    return null
+  },
+
   // ---------------------------------------------------------------------------
   // Captura (fluxo do celular no mock)
   // ---------------------------------------------------------------------------
@@ -715,7 +915,13 @@ export const mockArenaStore = {
   getActiveSession(
     deviceId: string,
     installationId: string,
-  ): { sessionId: string; status: string; startedAt: string | null; courtName: string; arenaName: string } | null {
+  ): {
+    sessionId: string
+    status: string
+    startedAt: string | null
+    courtName: string
+    arenaName: string
+  } | null {
     const found = findDeviceContext((device) => device.id === deviceId)
     if (!found) return null
     if (!found.device.paired || found.device.capture_installation_id !== installationId) return null
@@ -723,6 +929,7 @@ export const mockArenaStore = {
     const session = found.data.sessions.find((item) => item.id === found.device?.session_id)
     if (!session) return null
     if (!['active', 'processing'].includes(session.status)) return null
+    if (!found.data.captureRooms?.[session.id]?.isOpen) return null
     return {
       sessionId: session.id,
       status: session.status,
@@ -750,7 +957,8 @@ export const mockArenaStore = {
     if (!session) throw new Error('Sessão não encontrada.')
     if (
       (session.status !== 'active' && session.status !== 'processing') ||
-      session.court_id !== found.device.court_id
+      session.court_id !== found.device.court_id ||
+      !found.data.captureRooms?.[session.id]?.isOpen
     ) {
       throw new Error('Sessão não está ativa para este dispositivo.')
     }
@@ -785,7 +993,10 @@ export const mockArenaStore = {
       duration: input.duration ?? null,
       recording_started_at: now,
       recording_ended_at: null,
-      timeline_offset_ms: Math.max(0, Math.floor((Date.parse(now) - Date.parse(session.started_at ?? now)) / 1)),
+      timeline_offset_ms: Math.max(
+        0,
+        Math.floor((Date.parse(now) - Date.parse(session.started_at ?? now)) / 1),
+      ),
       codec: null,
       fps: null,
       width: null,
@@ -864,16 +1075,25 @@ export const mockArenaStore = {
     mimeType: string,
   ): boolean {
     const store = readAll()
-    const entry = Object.values(store).find((item) => item?.videos.some((video) => video.id === videoId))
+    const entry = Object.values(store).find((item) =>
+      item?.videos.some((video) => video.id === videoId),
+    )
     const video = entry?.videos.find((item) => item.id === videoId)
     if (!entry || !video) return false
     const device = entry.devices.find((item) => item.id === video.capture_device_id)
-    if (!device?.paired || device.capture_installation_id !== installationId || !video.recording_started_at) return false
+    if (
+      !device?.paired ||
+      device.capture_installation_id !== installationId ||
+      !video.recording_started_at
+    )
+      return false
     updateVideoAndPersist(entry.arena.owner_id ?? '', videoId, {
       duration: Math.max(0, duration),
       file_size: fileSize,
       mime_type: mimeType,
-      recording_ended_at: new Date(Date.parse(video.recording_started_at) + Math.max(0, duration) * 1000).toISOString(),
+      recording_ended_at: new Date(
+        Date.parse(video.recording_started_at) + Math.max(0, duration) * 1000,
+      ).toISOString(),
     })
     return true
   },

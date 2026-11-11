@@ -23,6 +23,7 @@ export const appPaths = {
   arenaSessionDetail: (id: string) => `/arena/sessions/${id}`,
   arenaSettings: '/arena/settings',
   capturePairing: (pairingToken: string) => `/capture/${pairingToken}`,
+  captureRoom: (roomToken: string) => `/capture/room/${roomToken}`,
   captureDevice: (id: string) => `/capture/device/${id}`,
 } as const
 

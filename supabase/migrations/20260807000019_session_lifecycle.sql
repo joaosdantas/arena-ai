@@ -549,14 +549,14 @@ create policy "videos_capture_select_owner"
   to authenticated
   using (
     bucket_id = 'videos'
-    and (storage.foldername(name))[1] = 'capture'
+    and (storage.foldername(storage.objects.name))[1] = 'capture'
     and exists (
       select 1
       from public.capture_devices cd
       join public.sessions s on s.id = cd.session_id
       join public.courts c on c.id = s.court_id
       join public.arenas a on a.id = c.arena_id
-      where cd.id = (storage.foldername(name))[4]::uuid
+      where cd.id = (storage.foldername(storage.objects.name))[4]::uuid
         and a.owner_id = auth.uid()
     )
   );

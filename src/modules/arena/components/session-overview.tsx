@@ -1,5 +1,7 @@
-import { CalendarDays, Camera, CircleStop, Flag, Play, Trophy } from 'lucide-react'
+import { CalendarDays, Camera, CircleStop, Copy, Flag, Play, Trophy } from 'lucide-react'
+import { toast } from 'sonner'
 
+import { QrCode } from '@/components/common/qr-code'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -7,29 +9,39 @@ import {
   CaptureDeviceStatusBadge,
   SessionStatusBadge,
 } from '@/modules/arena/components/arena-status-badge'
-import { SessionVideosCard } from '@/modules/arena/components/session-videos-card'
 import { SessionTimelineCard } from '@/modules/arena/components/session-timeline-card'
+import { SessionVideosCard } from '@/modules/arena/components/session-videos-card'
 import { useSessionLifecycle } from '@/modules/arena/hooks/use-session-lifecycle'
 import type { SessionDetail } from '@/modules/arena/types/arena-dashboard.types'
 
+import { buildCaptureRoomUrl } from '@/utils/capture'
 import { formatDateTime } from '@/utils/format'
 
 export function SessionOverview({ session }: { session: SessionDetail }) {
   const schedule = session.startedAt ?? session.createdAt
   const lifecycle = useSessionLifecycle()
+  const roomUrl = session.captureRoomToken ? buildCaptureRoomUrl(session.captureRoomToken) : null
 
   const canStart = session.status === 'scheduled'
   const canFinish = session.status === 'active' || session.status === 'processing'
   const canFail = session.status === 'active' || session.status === 'scheduled'
 
-  function runAction(
-    action: 'start' | 'finish' | 'fail',
-  ) {
+  function runAction(action: 'start' | 'finish' | 'fail') {
     lifecycle.mutate({
       sessionId: session.id,
       action,
       deviceIds: action === 'start' ? session.devices.map((device) => device.id) : undefined,
     })
+  }
+
+  async function copyRoomLink() {
+    if (!roomUrl) return
+    try {
+      await navigator.clipboard.writeText(roomUrl)
+      toast.success('Link da sala copiado.')
+    } catch {
+      toast.error('Não foi possível copiar o link.')
+    }
   }
 
   return (
@@ -55,14 +67,12 @@ export function SessionOverview({ session }: { session: SessionDetail }) {
             <SessionStatusBadge status={session.status} />
           </div>
 
-          {session.status === 'scheduled' || session.status === 'active' || session.status === 'processing' ? (
+          {session.status === 'scheduled' ||
+          session.status === 'active' ||
+          session.status === 'processing' ? (
             <div className="flex flex-wrap items-center gap-2 border-t pt-4">
               {canStart ? (
-                <Button
-                  size="sm"
-                  disabled={lifecycle.isPending}
-                  onClick={() => runAction('start')}
-                >
+                <Button size="sm" disabled={lifecycle.isPending} onClick={() => runAction('start')}>
                   <Play className="size-4" />
                   Iniciar sessão
                 </Button>
@@ -93,6 +103,28 @@ export function SessionOverview({ session }: { session: SessionDetail }) {
           ) : null}
         </CardContent>
       </Card>
+
+      {roomUrl ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Convide dispositivos para esta sala</CardTitle>
+            <p className="text-muted-foreground text-sm">
+              Até 10 dispositivos podem entrar. Qualquer pessoa com este link pode enviar vídeos
+              enquanto a sala estiver aberta.
+            </p>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-3 sm:flex-row sm:items-center">
+            <QrCode value={roomUrl} size={176} />
+            <div className="w-full min-w-0 space-y-3">
+              <p className="break-all text-sm">{roomUrl}</p>
+              <Button variant="outline" onClick={() => void copyRoomLink()}>
+                <Copy className="size-4" />
+                Copiar link da sala
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card>

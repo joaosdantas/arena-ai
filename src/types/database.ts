@@ -476,6 +476,45 @@ export type Database = {
     }
     Views: Record<string, never>
     Functions: {
+      close_capture_room: {
+        Args: {
+          p_session_id: string
+        }
+        Returns: boolean
+      }
+      get_capture_room_by_token: {
+        Args: {
+          p_room_token: string
+        }
+        Returns: {
+          arena_name: string
+          court_name: string
+          session_id: string
+          status: string
+        }[]
+      }
+      get_session_capture_room_token: {
+        Args: {
+          p_session_id: string
+        }
+        Returns: string | null
+      }
+      join_capture_room: {
+        Args: {
+          p_device_name: string
+          p_installation_id: string
+          p_room_token: string
+        }
+        Returns: {
+          device_id: string
+        }[]
+      }
+      open_capture_room: {
+        Args: {
+          p_session_id: string
+        }
+        Returns: string | null
+      }
       start_capture_video: {
         Args: {
           p_device_id: string
@@ -484,10 +523,21 @@ export type Database = {
           p_mime_type?: string | null
           p_match_id?: string | null
         }
-        Returns: { video_id: string; storage_path: string; recording_started_at: string; timeline_offset_ms: number }[]
+        Returns: {
+          video_id: string
+          storage_path: string
+          recording_started_at: string
+          timeline_offset_ms: number
+        }[]
       }
       finish_capture_video: {
-        Args: { p_video_id: string; p_installation_id: string; p_duration: number; p_file_size?: number | null; p_mime_type?: string | null }
+        Args: {
+          p_video_id: string
+          p_installation_id: string
+          p_duration: number
+          p_file_size?: number | null
+          p_mime_type?: string | null
+        }
         Returns: boolean
       }
       get_active_capture_session: {

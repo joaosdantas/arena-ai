@@ -1,5 +1,6 @@
 import { mockArenaStore } from '@/modules/arena/services/mock-arena-dashboard'
 
+import { captureRoomService } from '@/services/capture-room.service'
 import { getRequiredUserId, getSupabase, isSupabaseConfigured } from '@/services/supabase'
 
 import type { CreateSessionInput, Session, SessionStatus, SessionUpdate } from '@/types/domain'
@@ -87,7 +88,13 @@ export const sessionService = {
 // -----------------------------------------------------------------------------
 
 function isSessionStatus(value: string): value is SessionStatus {
-  return value === 'scheduled' || value === 'active' || value === 'processing' || value === 'finished' || value === 'failed'
+  return (
+    value === 'scheduled' ||
+    value === 'active' ||
+    value === 'processing' ||
+    value === 'finished' ||
+    value === 'failed'
+  )
 }
 
 async function refreshSession(sessionId: string): Promise<Session> {
@@ -98,7 +105,11 @@ async function refreshSession(sessionId: string): Promise<Session> {
 
 export const sessionLifecycleService = {
   async start(sessionId: string): Promise<Session> {
-    if (!isSupabaseConfigured()) return mockArenaStore.startSession(sessionId)
+    if (!isSupabaseConfigured()) {
+      const session = mockArenaStore.startSession(sessionId)
+      await captureRoomService.open(sessionId)
+      return session
+    }
 
     const session = await sessionService.get(sessionId)
     if (!session) throw new Error('Sessão não encontrada.')
@@ -111,15 +122,22 @@ export const sessionLifecycleService = {
       .single()
 
     if (error) throw error
+    await captureRoomService.open(sessionId)
     return data
   },
 
   async fail(sessionId: string): Promise<Session> {
-    if (!isSupabaseConfigured()) return mockArenaStore.failSession(sessionId)
+    if (!isSupabaseConfigured()) {
+      await captureRoomService.close(sessionId)
+      return mockArenaStore.failSession(sessionId)
+    }
+
+    const roomClosed = await captureRoomService.close(sessionId)
+    if (!roomClosed) throw new Error('Não foi possível fechar a sala de captura.')
 
     const { data, error } = await getSupabase()
       .from('sessions')
-      .update({ status: 'failed', ended_at: new Date().toISOString() })
+      .update({ status: 'failed' })
       .eq('id', sessionId)
       .select()
       .single()
@@ -130,12 +148,13 @@ export const sessionLifecycleService = {
 
   /** Encerra a sessão recalculando o status a partir dos vídeos associados. */
   async finish(sessionId: string): Promise<Session> {
-    if (!isSupabaseConfigured()) return mockArenaStore.finishSession(sessionId)
+    if (!isSupabaseConfigured()) {
+      await captureRoomService.close(sessionId)
+      return mockArenaStore.finishSession(sessionId)
+    }
 
-    const { error } = await getSupabase().rpc('recalculate_session_status', {
-      p_session_id: sessionId,
-    })
-    if (error) throw error
+    const roomClosed = await captureRoomService.close(sessionId)
+    if (!roomClosed) throw new Error('Não foi possível fechar a sala de captura.')
     return refreshSession(sessionId)
   },
 

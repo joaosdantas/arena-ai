@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 import { CaptureHeader } from '@/modules/capture/components/capture-header'
 import { CaptureRecorder } from '@/modules/capture/components/capture-recorder'
+import { CaptureVideoUploader } from '@/modules/capture/components/capture-video-uploader'
 import { useActiveCaptureSession } from '@/modules/capture/hooks/use-active-session'
 import { useCaptureDeviceById } from '@/modules/capture/hooks/use-capture-device'
 import { useCaptureHeartbeat } from '@/modules/capture/hooks/use-capture-heartbeat'
@@ -118,6 +119,12 @@ export function CaptureDevicePage() {
             </Card>
 
             <CaptureRecorder
+              deviceId={device.id}
+              installationId={installationId}
+              activeSession={activeSession}
+              onUploaded={() => void refetchActiveSession()}
+            />
+            <CaptureVideoUploader
               deviceId={device.id}
               installationId={installationId}
               activeSession={activeSession}

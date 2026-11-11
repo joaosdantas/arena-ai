@@ -89,6 +89,7 @@ export interface ArenaMatchSummary {
 }
 
 export interface SessionDetail extends SessionView {
+  captureRoomToken: string | null
   devices: CaptureDeviceView[]
   matches: ArenaMatchSummary[]
   videos: SessionVideoView[]
